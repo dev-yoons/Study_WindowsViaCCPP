@@ -97,4 +97,77 @@ wcscpy(szBuffer, L"abc"); // 3문자를 담을 수 있는 공간에 4문자를 �
     HRESULT StringCchCat(PTSTR pszDest, size_t cchDest, PCTSTR pszSrc);
     ```
     * 함수명에 Cch (Count of characters) 를 포함하고 있을 경우 문자의 개수를 의미하여 _countof 매크로를 이용하면 적절한 값을 전달 가능하다. 
-    * 함수명에 Cb (Count of bytes) 를 포함하고 있는 경우 인자로 바이트 수를 요구함을 의미하여 sizeof 연산자를 이용하면 적절한 값을 전달가능하다.
+    *  함수명에 Cb (Count of bytes) 를 포함하고 있는 경우 인자로 바이트 수를 요구함을 의미하여 sizeof 연산자를 이용하면 적절한 값을 전달가능하다.
+    ####
+    * HRESULT 반환형을 가진 함수는 3가지 값들 중 하나를 반환한다.
+      * S_OK : 성공. 복사 대상 버퍼에 원본 문자열이 정상 복사되었으며, "\0"로 문자열이 종결됨
+      * STRSAFE_E_INVALID_PARAMETER : 인자 값으로 NULL이 전달됨
+      * STRSAFE_E_INSUFFICIENT_BUFFER : 복사 대상 버퍼가 원본 문자열을 담기에 충분하지 않음
+    * _s 로 끝나는 안전 문자열 함수와 달리 이 함수들은 버퍼가 충분하지 않을 경우 문자열 잘림이 수행되고 STRSAFE_E_INSUFFICIENT_BUFFER 값이 반환된다.
+    * 복사 대상 버퍼가 충분히 크다면 '\0' 이후의 나머지 공간은 0xfd로 채워진다. 앞서 알아본 함수들의 Ex버전을 사용하면 동작의 수행 여부를 결정하거나 사용자지정값으로 남은 공간을 채울 수 있다.
+    #### 3) 윈도우의 문자열 함수
+    * 윈도우 또한 문자열을 다루는 다양한 함수를 제공한다.
+    * 문자열 간의 비교나 정렬 등을 위한 최상의 함수는 CompareString(Ex)와 CompareStringOrdinal 이다.
+    ```C++
+    int CompareString(
+        LCID locale,
+        DWORD dwCmdFlags,
+        PCTSTR pString1,
+        int cch1,
+        PCTSTR pString2,
+        int cch2
+    );
+    ```
+    * CompareString 함수는 두 개의 문자열을 비교한다. 첫 번째 매개변수로 각 언어별로 고유한 32비트 값인 지역ID (LCID)를 전달한다. 두 번째 매개변수에는 두 문자열의 비교 방법을 조정하는 플래그 값을 전달한다.
+    아래는 예시이다.
+      * NORM_IGNORECASE : 대소문자를 구분하지 않는다.
+      * NORM_IGNORESYMBOLS : 기호를 무시한다.
+    * 나머지 네 개의 매개변수에는 두 개의 문자열과 각 문자열을 구성하는 문자의 개수가 전달된다.
+    * CompareStringOridnal 을 사용하면 지역 설정을 고려하지 않고 단순히 값에 의한 비교만을 수행한다. 상대적으로 빠르다. 프로그램 내에서만 사용하는 문자열은 최종 사용자에게 보여지지 않는 경우가 많으므로 이 함수를 사용하는 것이 좋다.
+### Section 06. 왜 유니코드를 사용하는 것이 좋은가?
+  * 다른 나라의 언어로 지역화하기 쉽다.
+  * 단일 바이너리 파일로 모든 언어를 지원 가능하다.
+  * 코드가 더 빠르게 수행되고 메모리를 적게 사용한다. (ANSI 문자열의 경우 유니코드로 변경하는 데에 메모리를 할당해야함)
+  * 윈도우가 제공하는 모든 함수를 쉽게 사용 가능하다.
+  * COM, 닷넷 프레임워크와의 상호 운용이 쉽다.
+  * 리소스를 쉽게 다룰 수 있다. (리소스 내의 문자열은 유니코드로 유지됨)
+### Section 07. 문자와 문자열 작업에 대한 권고사항
+  * 문자열을 char 혹은 byte의 배열이 아닌 문자의 배열로 생각하라.
+  * 문자나 문자열을 나타낼 때 중립 자료형을 사용하라.
+  * 바이트 혹은 바이트를 가리키는 포인터, 데이터 버퍼 등을 표현하려면 명시적인 자료형 (BYTE, PBYTE)을 사용하라.
+  * 문자나 문자열 상수 값을 표현할 때 TEXT, _T 매크로를 사용하라. 일관성을 위해 두 개의 매크로를 혼용하면 안 된다.
+  * 문자, 문자열 관련 자료형을 애플리케이션 전반에 걸쳐 변경하라.
+  * 문자열에 대한 산술적인 계산 부분을 수정하라.
+    * 예를 들어 문자의 개수를 알고 있는 경우 메모리 할당은 바이트 단위로 수행해야 하는데, malloc(nCharacters*sizeof(TCHAR)) 와 같은 코드는 기억하기 까다롭다. 따라서 아래와 같은 매크로를 정의 해두는 것이 좋다.
+    ```C++
+    #define chmalloc(nCharacters) (TCHAR*)malloc(nCharacters*sizeof(TCHAR))
+    ```
+  * printf 와 같은 함수를 사용하지 말라. 
+  * UNICODE와 _UNICODE 심벌은 항상 동시에 정의/해제하라.
+  ####
+  * 함수 이름이 _s로 끝나거나 StringCch로 시작하는 안전 문자열 함수를 사용하라. 함수 사용 이후에는 문자열 잘림에 대비하라. 
+  (문자열 잘림이 발생하지 않도록 하는 것이 더 좋다)
+  * 버퍼와 버퍼의 크기를 동시에 인자로 받지 않는 함수는 사용하지도, 만들지도 마라.
+  * 컴파일러가 자동적으로 버퍼 오버런을 감지할 수 있도록 /GS, /RTCs 컴파일러 플래그를 활용하라.
+  * 사용자의 언어 설정을 고려하지 않을 땐 (파일명, 경로명 등) CompareStringOrdinal을 사용한다. 
+  * 사용자의 유저 인터페이스를 구성하는 문자열의 경우는 CompareString(Ex)을 사용한다.
+### Section 08. 유니코드 문자열과 ANSI 문자열 사이의 변경
+  * 멀티바이트-문자 문자열을 와이드-문자(유니코드) 문자열로 변경하기 위해서는 MultiByteToWideChar 윈도우 함수를 사용한다. 반대로는 WideCharToMultiByte 윈도우 함수를 사용하면 된다.
+  * WideCharToMultiByte 함수는 MultiByteToWideChar 함수와 비교하여 2개의 매개변수를 더 필요로 한다. pDefaultChar 매개변수는 와이드 문자가 코드 페이지 내에 적절한 문자가 존재하지 않을 경우에 사용될 문자를 지정한다. pfUsedDefaultChar 매개변수는 BOOL 값을 가리키는 포인터가 전달되어, 변경할 와이드-문자 문자열 중 멀티바이트-문자 문자열로 변경하는 것이 실패한 문자가 있을 경우 TRUE가 전달된다.
+  #### 1) ANSI와 유니코드 DLL 함수의 익스포트
+  * 유니코드 함수와 ANSI 함수를 둘 다 제공하려면, 먼저 유니코드용 함수를 작성하고 ANSI 문자열을 유니코드로 변경하는 코드를 작성하여 전달하는 방법을 사용할 수 있다.
+  * 마지막으로 DLL 파일과 함께 배포되는 헤더 파일에 두 개의 함수 원형을 기록하면 된다.
+  ```C++
+  BOOL StringReverseW (PWSTR pWideCharStr, DWORD cchLength);
+  BOOL StringReverseA (PSTR pMultiByteStr, DWORD cchLength);
+  
+  #ifdef UNICODE
+  #define StringReverse StringReverseW
+  #else
+  #define StringReverse StringReverseA
+  #endif // !UNICODE
+  ```
+  #### 2) 텍스트가 ANSI인지 유니코드인지 여부를 확인하는 방법
+  * 윈도우 노트패드 애플리케이션(메모장)을 사용하여 인코딩을 변환하여 파일을 저장할 수 있다.
+  * 텍스트 파일의 경우 그 내용이 어떤 식으로 저장되었는지를 판단할 수 있는 안정적이고 빠른 방법이 없다.
+  * WinBase.h 헤더파일 내에 IsTextUnicode 함수가 AdvApi32.dll에 의해 익스포트되어 존재한다. 하지만 이 함수는 확률적인 방법을 활용하여, 잘못된 결과를 반환할 수 있다.
